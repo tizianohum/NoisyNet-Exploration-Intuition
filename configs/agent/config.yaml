@@ -1,5 +1,5 @@
 env:
-  name: MiniGrid-Empty-5x5-v0
+  name: CartPole-v1  # Gym environment name
 
 seed: 0
 

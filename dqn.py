@@ -293,10 +293,10 @@ class DQNAgent(AbstractAgent):
         print("Training complete.")
 
 
-@hydra.main(config_path="../configs/agent/", config_name="dqn", version_base="1.1")
+@hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
     # 1) build env
-    env = gym.make(cfg.env.name)
+    env = gym.make(cfg.env.name, render_mode="human")
     set_seed(env, cfg.seed)
 
     # 2) map config → agent kwargs

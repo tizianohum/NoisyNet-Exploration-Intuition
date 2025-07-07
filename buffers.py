@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
-from abstract_agent import AbstractBuffer
+from buffer import AbstractBuffer
 
 
 class ReplayBuffer(AbstractBuffer):
