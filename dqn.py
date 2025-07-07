@@ -11,9 +11,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig
-from rl_exercises.agent import AbstractAgent
-from rl_exercises.week_4.buffers import ReplayBuffer
-from rl_exercises.week_4.networks import QNetwork
+from abstract_agent import AbstractAgent
+from buffers import ReplayBuffer
+from networks import QNetwork
 
 
 def set_seed(env: gym.Env, seed: int = 0) -> None:
