@@ -14,8 +14,8 @@ from omegaconf import DictConfig
 from abstract_agent import AbstractAgent
 from buffers import ReplayBuffer
 from networks import QNetwork
-
-
+from datetime import datetime
+import os
 def set_seed(env: gym.Env, seed: int = 0) -> None:
     """
     Seed Python, NumPy, PyTorch and the Gym environment for reproducibility.
@@ -289,14 +289,29 @@ class DQNAgent(AbstractAgent):
                     print(
                         f"Frame {frame}, AvgReward(10): {avg:.2f}, ε={self.epsilon():.3f}"
                     )
+        
+        model_dir = os.path.join(
+            hydra.utils.get_original_cwd(), "models"
+        )
+        env_name = self.env.spec.id if self.env.spec else "unknown_env"
+        env_name = env_name.replace("-", "_")  # Für Dateiname bereinigen
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        print("Training complete.")
+        save_path = os.path.join(model_dir, f"dqn_trained_model_{env_name}_{timestamp}.pth")
+        torch.save(
+            {
+                "parameters": self.q.state_dict(),
+                "optimizer": self.optimizer.state_dict(),
+            },
+            save_path,
+        )
+        print(f"Modell gespeichert unter: {save_path}")
 
 
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
     # 1) build env
-    env = gym.make(cfg.env.name, render_mode="human")
+    env = gym.make(cfg.env.name)#, render_mode="human")
     set_seed(env, cfg.seed)
 
     # 2) map config → agent kwargs

@@ -10,9 +10,9 @@ agent:
   gamma:              0.99
   epsilon_start:      1.0
   epsilon_final:      0.01
-  epsilon_decay:      50000
+  epsilon_decay:      10000
   target_update_freq: 1000
 
 train:
-  num_frames:     100000   # total env steps
+  num_frames:     500000   # total env steps
   eval_interval:  1000    # print avg reward every this many episodes
