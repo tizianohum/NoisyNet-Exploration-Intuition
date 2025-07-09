@@ -12,7 +12,8 @@ agent:
   epsilon_final:      0.01
   epsilon_decay:      10000
   target_update_freq: 1000
+  use_noisy_net:      True     # Set to True to use NoisyNet exploration
 
 train:
-  num_frames:     500000   # total env steps
+  num_frames:     100000   # total env steps
   eval_interval:  1000    # print avg reward every this many episodes

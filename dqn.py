@@ -10,12 +10,15 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import pandas as pd
 from omegaconf import DictConfig
 from abstract_agent import AbstractAgent
 from buffers import ReplayBuffer
 from networks import QNetwork
 from datetime import datetime
 import os
+from networks import NoisyQNetwork
+
 def set_seed(env: gym.Env, seed: int = 0) -> None:
     """
     Seed Python, NumPy, PyTorch and the Gym environment for reproducibility.
@@ -59,6 +62,7 @@ class DQNAgent(AbstractAgent):
         epsilon_decay: int = 500,
         target_update_freq: int = 1000,
         seed: int = 0,
+        useNoisyNet: bool = False,
     ) -> None:
         """
         Initialize replay buffer, Q‐networks, optimizer, and hyperparameters.
@@ -85,6 +89,8 @@ class DQNAgent(AbstractAgent):
             How many updates between target‐network syncs.
         seed : int
             RNG seed.
+        useNoisyNet : bool
+            If True, use NoisyNet for exploration instead of ε‐greedy.
         """
         super().__init__(
             env,
@@ -100,15 +106,22 @@ class DQNAgent(AbstractAgent):
         )
         self.env = env
         set_seed(env, seed)
+        self.seed = seed
 
         obs_dim = env.observation_space.shape[0]
         n_actions = env.action_space.n
+        self.useNoisyNet = useNoisyNet
 
         # main Q‐network and frozen target
-        self.q = QNetwork(obs_dim, n_actions)
-        self.target_q = QNetwork(obs_dim, n_actions)
-        self.target_q.load_state_dict(self.q.state_dict())
-
+        if self.useNoisyNet:
+            self.q = NoisyQNetwork(obs_dim, n_actions)
+            self.target_q = NoisyQNetwork(obs_dim, n_actions)
+            self.target_q.load_state_dict(self.q.state_dict())
+        else:
+            self.q = QNetwork(obs_dim, n_actions)
+            self.target_q = QNetwork(obs_dim, n_actions)
+            self.target_q.load_state_dict(self.q.state_dict())
+        
         self.optimizer = optim.Adam(self.q.parameters(), lr=lr)
         self.buffer = ReplayBuffer(buffer_capacity)
 
@@ -131,6 +144,8 @@ class DQNAgent(AbstractAgent):
         float
             Exploration rate.
         """
+        if self.useNoisyNet:
+            return 0.0
         return self.epsilon_final + (self.epsilon_start - self.epsilon_final) * np.exp(
             -1.0 * self.total_steps / self.epsilon_decay
         )
@@ -264,6 +279,8 @@ class DQNAgent(AbstractAgent):
         state, _ = self.env.reset()
         ep_reward = 0.0
         recent_rewards: List[float] = []
+        steps = []
+        episode_rewards = []
 
         for frame in range(1, num_frames + 1):
             action = self.predict_action(state)
@@ -289,6 +306,13 @@ class DQNAgent(AbstractAgent):
                     print(
                         f"Frame {frame}, AvgReward(10): {avg:.2f}, ε={self.epsilon():.3f}"
                     )
+                    
+            if frame % eval_interval == 0:
+                steps.append(frame)
+                episode_rewards.append(np.mean(recent_rewards[-10:]))
+                print(
+                    f"Frame {frame}, AvgReward(10): {np.mean(recent_rewards[-10:]):.2f}, ε={self.epsilon():.3f}"
+                )
         
         model_dir = os.path.join(
             hydra.utils.get_original_cwd(), "models"
@@ -306,6 +330,12 @@ class DQNAgent(AbstractAgent):
             save_path,
         )
         print(f"Modell gespeichert unter: {save_path}")
+
+        training_data = pd.DataFrame({"steps": steps, "rewards": episode_rewards})
+        if self.useNoisyNet:
+            training_data.to_csv(f"noisy_model_training_data_seed_{self.seed}.csv", index=False)
+        else:
+            training_data.to_csv(f"model_training_data_seed_{self.seed}.csv", index=False)
 
 
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
@@ -325,6 +355,7 @@ def main(cfg: DictConfig):
         epsilon_decay=cfg.agent.epsilon_decay,
         target_update_freq=cfg.agent.target_update_freq,
         seed=cfg.seed,
+        useNoisyNet=cfg.agent.use_noisy_net,
     )
 
     # 3) instantiate & train
