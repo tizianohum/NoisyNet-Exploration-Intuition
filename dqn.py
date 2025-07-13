@@ -18,6 +18,8 @@ from networks import QNetwork
 from datetime import datetime
 import os
 from networks import NoisyQNetwork
+from minigrid.wrappers import FlatObsWrapper
+
 
 def set_seed(env: gym.Env, seed: int = 0) -> None:
     """
@@ -331,7 +333,12 @@ class DQNAgent(AbstractAgent):
         )
         print(f"Modell gespeichert unter: {save_path}")
 
-        training_data = pd.DataFrame({"steps": steps, "rewards": episode_rewards})
+        rawdata_dir = os.path.join(
+            hydra.utils.get_original_cwd(), "RAW_Data"
+        )
+        save_path = os.path.join(rawdata_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_{timestamp}.pth")
+
+        training_data = pd.DataFrame({"steps": steps, "rewards": recent_rewards})
         if self.useNoisyNet:
             training_data.to_csv(f"noisy_model_training_data_seed_{self.seed}.csv", index=False)
         else:
@@ -341,7 +348,8 @@ class DQNAgent(AbstractAgent):
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
     # 1) build env
-    env = gym.make(cfg.env.name)#, render_mode="human")
+    env = gym.make("MiniGrid-Empty-8x8-v0")#, render_mode="human")
+    env = FlatObsWrapper(env)
     set_seed(env, cfg.seed)
 
     # 2) map config → agent kwargs
