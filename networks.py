@@ -84,7 +84,7 @@ class NoisyQNetwork(nn.Module):
                 [
                     ("Linear1", nn.Linear(obs_dim, hidden_dim)),
                     ("relu1", nn.ReLU()),
-                    ("Noisy1", NoisyLinear(hidden_dim, hidden_dim)),  # sigma_init is the initial value for the standard deviation of the noise
+                    ("Noisy1", NoisyLinear(hidden_dim, hidden_dim)),  # sigma_init is the initial value for the standard deviation of the noise, its not specified here, so it will use the default value of 0.5
                     ("relu2", nn.ReLU()),
                     ("Noisy2", NoisyLinear(hidden_dim, n_actions)),
                 ]
