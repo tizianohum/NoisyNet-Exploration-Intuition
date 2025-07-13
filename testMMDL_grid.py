@@ -2,7 +2,7 @@ import gymnasium as gym
 import minigrid
 import torch
 from minigrid.wrappers import FlatObsWrapper
-from dqn import DQNAgent, set_seed
+from dqn import DQNAgent, set_seed, evaluate_policy
 import hydra
 from omegaconf import DictConfig
 import os
@@ -46,14 +46,28 @@ def main(cfg: DictConfig):
     agent.optimizer.load_state_dict(checkpoint["optimizer"])
 
     # 4. Simulation (eine Episode)
+    agent.q.eval()
     state, _ = env.reset()
     done = False
     while not done:
         action = agent.predict_action(state, evaluate=True)  # keine Exploration
         state, reward, done, truncated, _ = env.step(action)
+        print(action,state, reward)
         if done or truncated:
             break
 
+    # agent.q.eval() # Take deterministic actions at test time (important for NoisyNet layers)
+    # total_scores = 0
+    # for j in range(1):
+    #     s, info = env.reset()
+    #     done = False
+    #     while not done:
+    #         a = agent.predict_action(s, evaluate=True)
+    #         s_next, r, dw, tr,_ = env.step(a)
+    #         done = (dw or tr)
+
+    #         total_scores += r
+    #         s = s_next    
     env.close()
 
 

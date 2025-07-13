@@ -164,6 +164,8 @@ class DQNAgent(AbstractAgent):
         float
             Exploration rate.
         """
+        if self.useNoisyNet:
+            return 0.0
         return self.epsilon_final + (self.epsilon_start - self.epsilon_final) * np.exp(
             -1.0 * self.total_steps / self.epsilon_decay
         )
@@ -356,7 +358,7 @@ class DQNAgent(AbstractAgent):
         )
         save_path = os.path.join(rawdata_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_{timestamp}.pth")
 
-        training_data = pd.DataFrame({"steps": steps, "rewards": recent_rewards})
+        training_data = pd.DataFrame({"steps": steps, "rewards": episode_rewards})
         if self.useNoisyNet:
             training_data.to_csv(f"noisy_model_training_data_seed_{self.seed}.csv", index=False)
         else:
