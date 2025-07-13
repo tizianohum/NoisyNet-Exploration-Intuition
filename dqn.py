@@ -14,10 +14,10 @@ import pandas as pd
 from omegaconf import DictConfig
 from abstract_agent import AbstractAgent
 from buffers import ReplayBuffer
-from networks import QNetwork
+from networks import QNetwork, NoisyQNetwork
 from datetime import datetime
 import os
-from networks import NoisyQNetwork
+import copy
 
 def set_seed(env: gym.Env, seed: int = 0) -> None:
     """
@@ -38,6 +38,22 @@ def set_seed(env: gym.Env, seed: int = 0) -> None:
         env.action_space.seed(seed)
     if hasattr(env.observation_space, "seed"):
         env.observation_space.seed(seed)
+
+def evaluate_policy(env, agent, turns = 3):
+    agent.q.eval() # Take deterministic actions at test time (important for NoisyNet layers)
+    total_scores = 0
+    for j in range(turns):
+        s, info = env.reset()
+        done = False
+        while not done:
+            a = agent.predict_action(s, info, evaluate=True)
+            s_next, r, dw, tr, info = env.step(a)
+            done = (dw or tr)
+
+            total_scores += r
+            s = s_next
+    agent.q.train()
+    return int(total_scores/turns)
 
 
 class DQNAgent(AbstractAgent):
@@ -115,13 +131,14 @@ class DQNAgent(AbstractAgent):
         # main Q‐network and frozen target
         if self.useNoisyNet:
             self.q = NoisyQNetwork(obs_dim, n_actions)
-            self.target_q = NoisyQNetwork(obs_dim, n_actions)
-            self.target_q.load_state_dict(self.q.state_dict())
+            self.target_q = copy.deepcopy(self.q) # copying instead of initializing a new network ensures same noise structure in both networks 
         else:
             self.q = QNetwork(obs_dim, n_actions)
             self.target_q = QNetwork(obs_dim, n_actions)
             self.target_q.load_state_dict(self.q.state_dict())
+            
         
+        for p in self.target_q.parameters(): p.requires_grad = False # freeze target network, we only update it by syncing with the main network, not by any gradient steps
         self.optimizer = optim.Adam(self.q.parameters(), lr=lr)
         self.buffer = ReplayBuffer(buffer_capacity)
 
@@ -144,8 +161,6 @@ class DQNAgent(AbstractAgent):
         float
             Exploration rate.
         """
-        if self.useNoisyNet:
-            return 0.0
         return self.epsilon_final + (self.epsilon_start - self.epsilon_final) * np.exp(
             -1.0 * self.total_steps / self.epsilon_decay
         )
@@ -171,8 +186,9 @@ class DQNAgent(AbstractAgent):
         info_out : dict
             Empty dict (compatible with interface).
         """
-        if evaluate:
-            # purely greedy
+        if self.useNoisyNet or evaluate:
+            # NoisyNet doesn't use ε-greedy, always uses noisy layers for exploration. Also, in evaluation mode, we always pick the action with the highest Q-value.
+            # take care that q.eval() is called before this function if NoisyNet is to be evaluated in order to have deterministic actions
             t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             with torch.no_grad():
                 qvals = self.q(t)
@@ -217,6 +233,7 @@ class DQNAgent(AbstractAgent):
         """
         checkpoint = torch.load(path)
         self.q.load_state_dict(checkpoint["parameters"])
+        self.target_q.load_state_dict(checkpoint["parameters"]) #ensure same noise structure in both networks
         self.optimizer.load_state_dict(checkpoint["optimizer"])
 
     def update_agent(
@@ -258,7 +275,7 @@ class DQNAgent(AbstractAgent):
         loss.backward()
         self.optimizer.step()
 
-        # occasionally sync target network
+        # occasionally sync target network, we use hard update for simplicity
         if self.total_steps % self.target_update_freq == 0:
             self.target_q.load_state_dict(self.q.state_dict())
 
