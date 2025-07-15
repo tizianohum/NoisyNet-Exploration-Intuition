@@ -5,6 +5,7 @@ Deep Q-Learning implementation.
 from typing import Any, Dict, List, Tuple
 
 import gymnasium as gym
+import minigrid
 import hydra
 import numpy as np
 import torch
@@ -17,7 +18,8 @@ from buffers import ReplayBuffer
 from networks import QNetwork, NoisyQNetwork
 from datetime import datetime
 import os
-from networks import NoisyQNetwork
+import copy
+from wrapper import FlatObsImageOnlyWrapper
 from minigrid.wrappers import FlatObsWrapper
 
 import copy
@@ -43,20 +45,18 @@ def set_seed(env: gym.Env, seed: int = 0) -> None:
         env.observation_space.seed(seed)
 
 def evaluate_policy(env, agent, turns = 3):
-    agent.q.eval() # Take deterministic actions at test time (important for NoisyNet layers)
     total_scores = 0
     for j in range(turns):
         s, info = env.reset()
         done = False
         while not done:
-            a = agent.predict_action(s, info, evaluate=True)
+            a = agent.predict_action(s, info, evaluate=False)
             s_next, r, dw, tr, info = env.step(a)
-            done = (dw or tr)
 
             total_scores += r
             s = s_next
-    agent.q.train()
-    return int(total_scores/turns)
+            done = (dw or tr)
+    return total_scores/turns
 
 
 class DQNAgent(AbstractAgent):
@@ -164,8 +164,7 @@ class DQNAgent(AbstractAgent):
         float
             Exploration rate.
         """
-        if self.useNoisyNet:
-            return 0.0
+
         return self.epsilon_final + (self.epsilon_start - self.epsilon_final) * np.exp(
             -1.0 * self.total_steps / self.epsilon_decay
         )
@@ -191,16 +190,27 @@ class DQNAgent(AbstractAgent):
         info_out : dict
             Empty dict (compatible with interface).
         """
-        if self.useNoisyNet or evaluate:
+        if self.useNoisyNet:
+            if evaluate:
+                self.q.eval()  # ensure deterministic actions in evaluation mode
+            else:
+                self.q.train()  # ensure stochastic actions in training mode
             # NoisyNet doesn't use ε-greedy, always uses noisy layers for exploration. Also, in evaluation mode, we always pick the action with the highest Q-value.
-            # take care that q.eval() is called before this function if NoisyNet is to be evaluated in order to have deterministic actions
+            
             t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             with torch.no_grad():
                 qvals = self.q(t)
             action = int(torch.argmax(qvals, dim=1).item())
+            self.q.train()  # switch back to training mode after evaluation
         else:
+            if evaluate:
+                # purely greedy
+                t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                with torch.no_grad():
+                    qvals = self.q(t)
+                action = int(torch.argmax(qvals, dim=1).item())
             # ε-greedy
-            if np.random.rand() < self.epsilon():
+            elif np.random.rand() < self.epsilon():
                 action = self.env.action_space.sample()
             else:
                 t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
@@ -303,6 +313,8 @@ class DQNAgent(AbstractAgent):
         recent_rewards: List[float] = []
         steps = []
         episode_rewards = []
+        positions_x: List[int] = []
+        positions_y: List[int] = []
 
         for frame in range(1, num_frames + 1):
             action = self.predict_action(state)
@@ -332,9 +344,12 @@ class DQNAgent(AbstractAgent):
             if frame % eval_interval == 0:
                 steps.append(frame)
                 episode_rewards.append(np.mean(recent_rewards[-10:]))
-                print(
-                    f"Frame {frame}, AvgReward(10): {np.mean(recent_rewards[-10:]):.2f}, ε={self.epsilon():.3f}"
-                )
+
+            if frame > num_frames - 5000:
+                if hasattr(self.env.unwrapped, "agent_pos"):
+                    x, y = self.env.unwrapped.agent_pos
+                    positions_x.append(x)
+                    positions_y.append(y)
         
         model_dir = os.path.join(
             hydra.utils.get_original_cwd(), "models"
@@ -356,21 +371,28 @@ class DQNAgent(AbstractAgent):
         rawdata_dir = os.path.join(
             hydra.utils.get_original_cwd(), "RAW_Data"
         )
-        save_path = os.path.join(rawdata_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_{timestamp}.pth")
+        training_data_dir = os.path.join(rawdata_dir, "training_data")
+        heatmap_data_dir = os.path.join(rawdata_dir, "heatmap_data")
 
+        os.makedirs(training_data_dir, exist_ok=True)
+        os.makedirs(heatmap_data_dir, exist_ok=True)
+
+        training_data_path = os.path.join(training_data_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_seed_{self.seed}_{timestamp}.csv")
         training_data = pd.DataFrame({"steps": steps, "rewards": episode_rewards})
-        if self.useNoisyNet:
-            training_data.to_csv(f"noisy_model_training_data_seed_{self.seed}.csv", index=False)
-        else:
-            training_data.to_csv(f"model_training_data_seed_{self.seed}.csv", index=False)
+        training_data.to_csv(training_data_path, index=False)
+
+        positions_path = os.path.join(heatmap_data_dir, f"positions_{env_name}_noisy_{self.useNoisyNet}_seed_{self.seed}_{timestamp}.csv")
+        positions = pd.DataFrame({"x": positions_x, "y": positions_y})
+        positions.to_csv(positions_path, index=False)
 
 
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
+    
     # 1) build env
     env = gym.make(cfg.env.name)#, render_mode="human")
-    env = FlatObsWrapper(env)
-
+    env = FlatObsImageOnlyWrapper(env)
+    #env = FlatObsWrapper(env)
     set_seed(env, cfg.seed)
 
     # 2) map config → agent kwargs
