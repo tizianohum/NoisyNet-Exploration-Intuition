@@ -21,6 +21,8 @@ import os
 import copy
 from wrapper import FlatObsImageOnlyWrapper
 from minigrid.wrappers import FlatObsWrapper
+import shutil
+from hydra.core.hydra_config import HydraConfig
 
 import copy
 
@@ -351,13 +353,34 @@ class DQNAgent(AbstractAgent):
                     positions_x.append(x)
                     positions_y.append(y)
         
-        model_dir = os.path.join(
-            hydra.utils.get_original_cwd(), "models"
-        )
-        env_name = self.env.spec.id if self.env.spec else "unknown_env"
-        env_name = env_name.replace("-", "_")  # Für Dateiname bereinigen
+
+        ### save training data ###
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp)
+        training_data_dir = os.path.join(working_dir, "training_data")
+        heatmap_data_dir = os.path.join(working_dir, "heatmap_data")
+        model_dir = os.path.join( working_dir, "models" )
+
+        os.mkdir(working_dir) if not os.path.exists(working_dir) else working_dir
+        os.makedirs(training_data_dir, exist_ok=True)
+        os.makedirs(heatmap_data_dir, exist_ok=True)
+        os.makedirs(model_dir, exist_ok=True)
+        
+        #save yaml config to working directory
+        try:
+            # Originale config.yaml kopieren
+            original_config = os.path.join(hydra.utils.get_original_cwd(), "configs/agent/config.yaml")
+            config_destination = os.path.join(working_dir, "config.yaml")
+            shutil.copy2(original_config, config_destination)
+            print(f"Config gespeichert unter: {config_destination}")
+        except FileNotFoundError:
+            print("Config-Datei nicht gefunden")
+
+        # save model
+        env_name = self.env.spec.id if self.env.spec else "unknown_env"
+        env_name = env_name.replace("-", "_")  # Für Dateiname bereinigen
         save_path = os.path.join(model_dir, f"dqn_trained_model_{env_name}_{timestamp}.pth")
         torch.save(
             {
@@ -367,15 +390,6 @@ class DQNAgent(AbstractAgent):
             save_path,
         )
         print(f"Modell gespeichert unter: {save_path}")
-
-        rawdata_dir = os.path.join(
-            hydra.utils.get_original_cwd(), "RAW_Data"
-        )
-        training_data_dir = os.path.join(rawdata_dir, "training_data")
-        heatmap_data_dir = os.path.join(rawdata_dir, "heatmap_data")
-
-        os.makedirs(training_data_dir, exist_ok=True)
-        os.makedirs(heatmap_data_dir, exist_ok=True)
 
         training_data_path = os.path.join(training_data_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_seed_{self.seed}_{timestamp}.csv")
         training_data = pd.DataFrame({"steps": steps, "rewards": episode_rewards})
