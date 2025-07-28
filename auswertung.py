@@ -73,7 +73,7 @@ class Auswerter():
             print(  "No heatmap data files found for the given timestamp.")
 
 if __name__ == "__main__":
-    timestamp = "20250717_091247"
+    timestamp = "20250728_133214"
     #print(convert_timestamp_to_time(timestamp))
     auswertung = Auswerter(timestamp)
     auswertung.simpleplot(True)
