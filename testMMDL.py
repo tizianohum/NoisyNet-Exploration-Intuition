@@ -3,29 +3,61 @@ import torch
 from dqn import DQNAgent, set_seed, evaluate_policy
 from wrapper import FlatObsImageOnlyWrapper
 from minigrid.wrappers import FlatObsWrapper
+from hydra.core.hydra_config import HydraConfig
+import hydra
+import os
+from typing import Any, Dict, List, Tuple
+from omegaconf import DictConfig
 
-# 1. Umgebung mit Render-Modus erstellen
-env = gym.make("MiniGrid-Empty-8x8-v0")
-env = FlatObsImageOnlyWrapper(env)
-env = gym.wrappers.TimeLimit(env, max_episode_steps=2000)  # z.B. 1000 Schritte
-set_seed(env, 10)
 
-# 2. Agent initialisieren (Parameter wie beim Training!)
-agent = DQNAgent(
-    env=env,
-    seed=1,
-    buffer_capacity=50000,
-    batch_size=32,
-    useNoisyNet=True,
-)
+@hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
+def main(cfg: DictConfig):
 
-# 3. Modell laden
-checkpoint = torch.load("models/dqn_trained_model_MiniGrid_Empty_5x5_v0_20250715_162459.pth")
-agent.q.load_state_dict(checkpoint["parameters"])
-agent.optimizer.load_state_dict(checkpoint["optimizer"])
+    timestamp = "20250728_133214"
+    working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp, "models")
 
-# 4. Simulation (eine Episode)
-score = evaluate_policy(env, agent, turns=50)
-print(score)
 
-env.close()
+    files = os.listdir(working_dir)
+    if len(files) == 1:
+        model = os.path.join(working_dir,files[0])
+    else:
+        print(f"Error: Expected 1 file, found {len(files)} files")
+        model = None
+
+
+    # 1) build env
+    env = gym.make(cfg.env.name, render_mode="human")
+    env = FlatObsImageOnlyWrapper(env)
+    #env = FlatObsWrapper(env)
+    set_seed(env, cfg.seed)
+
+    # 2) map config → agent kwargs
+    agent_kwargs = dict(
+        buffer_capacity=cfg.agent.buffer_capacity,
+        batch_size=cfg.agent.batch_size,
+        lr=cfg.agent.learning_rate,
+        gamma=cfg.agent.gamma,
+        epsilon_start=cfg.agent.epsilon_start,
+        epsilon_final=cfg.agent.epsilon_final,
+        epsilon_decay=cfg.agent.epsilon_decay,
+        target_update_freq=cfg.agent.target_update_freq,
+        seed=cfg.seed,
+        useNoisyNet=cfg.agent.use_noisy_net,
+    )
+    
+    agent = DQNAgent(env, **agent_kwargs)
+
+    # 3. Modell laden
+    checkpoint = torch.load(model)
+    agent.q.load_state_dict(checkpoint["parameters"])
+    agent.optimizer.load_state_dict(checkpoint["optimizer"])
+
+    # 4. Simulation (eine Episode)
+    score = evaluate_policy(env, agent, turns=5)
+    print(score)
+
+    env.close()
+
+
+if __name__ == "__main__":
+    main()
