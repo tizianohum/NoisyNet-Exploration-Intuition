@@ -400,8 +400,8 @@ class DQNAgent(AbstractAgent):
         positions.to_csv(positions_path, index=False)
 
 
-@hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
-def main(cfg: DictConfig):
+@hydra.main(config_path="configs/agent/", config_name="config_sweeper", version_base="1.1")
+def main(cfg: DictConfig) -> float:
     
     # 1) build env
     env = gym.make(cfg.env.name)#, render_mode="human")
@@ -425,8 +425,19 @@ def main(cfg: DictConfig):
 
     # 3) instantiate & train
     agent = DQNAgent(env, **agent_kwargs)
+    
+    print(f"Training with buffer_capacity={cfg.agent.buffer_capacity}...")
     agent.train(cfg.train.num_frames, cfg.train.eval_interval)
 
+
+    # Evaluation - einfacher Score
+    print("Evaluating...")
+    final_score = evaluate_policy(env, agent, turns=10)
+    
+    print(f"Buffer capacity {cfg.agent.buffer_capacity} -> Score: {final_score:.3f}")
+    
+    env.close()
+    return final_score
 
 if __name__ == "__main__":
     main()

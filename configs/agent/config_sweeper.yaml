@@ -1,0 +1,35 @@
+# configs/agent/sweep_buffer_config.yaml
+defaults:
+  - override hydra/sweeper: optuna
+
+env:
+  name: MiniGrid-Empty-5x5-v0
+
+seed: 0
+
+agent:
+  buffer_capacity: 1000  # Default Wert
+  batch_size: 256
+  learning_rate: 0.0001
+  gamma: 0.9
+  epsilon_start: 1.0
+  epsilon_final: 0.05
+  epsilon_decay: 100000
+  target_update_freq: 2000
+  use_noisy_net: true
+
+train:
+  num_frames: 25000  # Kürzer für schnelle Tests
+  eval_interval: 1000
+
+# Optuna Konfiguration
+hydra:
+  sweeper:
+    sampler:
+      _target_: optuna.samplers.TPESampler
+      seed: ${seed}
+    direction: maximize
+    study_name: buffer_capacity_sweep_v3
+    n_trials: 3
+    params:
+      agent.buffer_capacity: choice (1000, 75000) 
