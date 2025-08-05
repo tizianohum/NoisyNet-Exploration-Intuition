@@ -1,0 +1,4 @@
+- agent.gamma=0.95
+- agent.learning_rate=0.0001
+- agent.buffer_capacity=75000
+- agent.target_update_freq=2000

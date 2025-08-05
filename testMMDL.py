@@ -13,7 +13,7 @@ from omegaconf import DictConfig
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
 
-    timestamp = "20250728_133214"
+    timestamp = "20250801_234458"
     working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp, "models")
 
 
@@ -53,7 +53,7 @@ def main(cfg: DictConfig):
     agent.optimizer.load_state_dict(checkpoint["optimizer"])
 
     # 4. Simulation (eine Episode)
-    score = evaluate_policy(env, agent, turns=5)
+    score = evaluate_policy(env, agent, turns=10)
     print(score)
 
     env.close()

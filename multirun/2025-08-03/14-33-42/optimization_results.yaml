@@ -1,0 +1,6 @@
+name: optuna
+best_params:
+  agent.gamma: 0.9
+  agent.learning_rate: 0.001
+  agent.epsilon_decay: 5000
+best_value: 0.9145

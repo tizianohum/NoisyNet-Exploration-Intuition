@@ -1,0 +1,2 @@
+score,duration,agent.buffer_capacity,agent.batch_size,agent.learning_rate,agent.gamma,agent.epsilon_start,agent.epsilon_final,agent.epsilon_decay,agent.target_update_freq,agent.use_noisy_net,train.num_frames,train.eval_interval,env.name,seed
+-142.0900579269855,154.58330130577087,75000,256,1e-05,0.9,1.0,0.05,10000,2000,False,50000,1000,LunarLander-v3,0

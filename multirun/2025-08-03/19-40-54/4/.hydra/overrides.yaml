@@ -1,0 +1,7 @@
+- agent.buffer_capacity=50000
+- agent.batch_size=256
+- agent.learning_rate=0.005
+- agent.gamma=0.99
+- agent.epsilon_decay=10000
+- agent.target_update_freq=500
+- seed=1

@@ -1,4 +1,0 @@
-name: optuna
-best_params:
-  agent.buffer_capacity: 75000
-best_value: 0.0

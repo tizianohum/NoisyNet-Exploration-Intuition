@@ -1,0 +1,8 @@
+name: optuna
+best_params:
+  agent.gamma: 0.9
+  agent.learning_rate: 0.001
+  agent.buffer_capacity: 10000
+  agent.target_update_freq: 1000
+  agent.epsilon_decay: 20000
+best_value: 0.9578125

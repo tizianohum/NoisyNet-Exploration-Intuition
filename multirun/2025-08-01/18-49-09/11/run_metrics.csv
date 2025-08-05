@@ -1,0 +1,2 @@
+score,duration,agent.buffer_capacity,agent.batch_size,agent.learning_rate,agent.gamma,agent.epsilon_start,agent.epsilon_final,agent.epsilon_decay,agent.target_update_freq,agent.use_noisy_net,train.num_frames,train.eval_interval,env.name,seed
+0.8739999999999999,13.579236030578613,10000,128,1e-05,0.8,1.0,0.05,10000,1000,False,8000,1000,MiniGrid-Empty-5x5-v0,0

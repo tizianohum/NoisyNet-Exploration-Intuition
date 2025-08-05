@@ -1,0 +1,6 @@
+- agent.gamma=0.8
+- agent.learning_rate=1e-05
+- agent.buffer_capacity=50000
+- agent.batch_size=128
+- agent.target_update_freq=1000
+- agent.epsilon_decay=20000

@@ -23,6 +23,7 @@ from wrapper import FlatObsImageOnlyWrapper
 from minigrid.wrappers import FlatObsWrapper
 import shutil
 from hydra.core.hydra_config import HydraConfig
+import time
 
 import copy
 
@@ -52,7 +53,7 @@ def evaluate_policy(env, agent, turns = 3):
         s, info = env.reset()
         done = False
         while not done:
-            a = agent.predict_action(s, info, evaluate=False)
+            a = agent.predict_action(s, info, evaluate=True)
             s_next, r, dw, tr, info = env.step(a)
 
             total_scores += r
@@ -84,6 +85,9 @@ class DQNAgent(AbstractAgent):
         target_update_freq: int = 1000,
         seed: int = 0,
         useNoisyNet: bool = False,
+        useNoiseReduction: bool = False,
+        minReward: float = -100000,
+        maxReward: float = 100000,
     ) -> None:
         """
         Initialize replay buffer, Q‐networks, optimizer, and hyperparameters.
@@ -132,6 +136,7 @@ class DQNAgent(AbstractAgent):
         obs_dim = env.observation_space.shape[0]
         n_actions = env.action_space.n
         self.useNoisyNet = useNoisyNet
+        self.useNoiseReduction = useNoiseReduction
 
         # main Q‐network and frozen target
         if self.useNoisyNet:
@@ -156,6 +161,8 @@ class DQNAgent(AbstractAgent):
         self.target_update_freq = target_update_freq
 
         self.total_steps = 0  # for ε decay and target sync
+        self.minReward = minReward
+        self.maxReward = maxReward
 
     def epsilon(self) -> float:
         """
@@ -254,7 +261,7 @@ class DQNAgent(AbstractAgent):
         self.optimizer.load_state_dict(checkpoint["optimizer"])
 
     def update_agent(
-        self, training_batch: List[Tuple[Any, Any, float, Any, bool, Dict]]
+        self, training_batch: List[Tuple[Any, Any, float, Any, bool, Dict]], avg
     ) -> float:
         """
         Perform one gradient update on a batch of transitions.
@@ -284,8 +291,24 @@ class DQNAgent(AbstractAgent):
         with torch.no_grad():
             next_q = self.target_q(s_next).max(1)[0]
             target = r + self.gamma * next_q * (1 - mask)
+        loss = None
+        if self.useNoisyNet and self.useNoiseReduction:
+            OutputLayer = self.q.net[4] # get noisy output layer for online weight adjustment
+            sigma_w = OutputLayer.weight_sigma  # shape: [out_features, in_features]
+            sigma_b = OutputLayer.bias_sigma    # shape: [out_features]
 
-        loss = nn.MSELoss()(pred, target)
+            p_star = sigma_w.size(1)  # in_features
+            N_a = sigma_w.size(0)     # out_features
+
+            sum_sigma_w = sigma_w.abs().sum().item()
+            sum_sigma_b = sigma_b.abs().sum().item()
+
+            D = (1 / ((p_star + 1) * N_a)) * (sum_sigma_w + sum_sigma_b)
+            k = 4 * (avg - self.minReward)/(self.maxReward - self.minReward)
+            td_error = (target - pred) + k * D
+            loss = torch.mean(td_error.pow(2))  # Equivalent to MSELoss
+        else:
+            loss = nn.MSELoss()(pred, target)
 
         # gradient step
         self.optimizer.zero_grad()
@@ -299,7 +322,7 @@ class DQNAgent(AbstractAgent):
         self.total_steps += 1
         return float(loss.item())
 
-    def train(self, num_frames: int, eval_interval: int = 1000) -> None:
+    def train(self, num_frames: int, eval_interval: int = 1000, t = None) -> None:
         """
         Run a training loop for a fixed number of frames.
 
@@ -309,14 +332,18 @@ class DQNAgent(AbstractAgent):
             Total environment steps.
         eval_interval : int
             Every this many episodes, print average reward.
+        t : str, optional
+            Timestamp for saving training data and model. If None, current time is used.
         """
         state, _ = self.env.reset()
         ep_reward = 0.0
         recent_rewards: List[float] = []
         steps = []
         episode_rewards = []
+        avg = 0
         positions_x: List[int] = []
         positions_y: List[int] = []
+        timestamp = t if t is not None else datetime.now().strftime("%Y%m%d_%H%M%S")
 
         for frame in range(1, num_frames + 1):
             action = self.predict_action(state)
@@ -330,7 +357,7 @@ class DQNAgent(AbstractAgent):
             # update if ready
             if len(self.buffer) >= self.batch_size:
                 batch = self.buffer.sample(self.batch_size)
-                _ = self.update_agent(batch)
+                _ = self.update_agent(batch, avg)
 
             if done or truncated:
                 state, _ = self.env.reset()
@@ -347,16 +374,23 @@ class DQNAgent(AbstractAgent):
                 steps.append(frame)
                 episode_rewards.append(np.mean(recent_rewards[-10:]))
 
-            if frame > num_frames - 5000:
-                if hasattr(self.env.unwrapped, "agent_pos"):
-                    x, y = self.env.unwrapped.agent_pos
+            
+            if hasattr(self.env.unwrapped, "agent_pos"):
+                x, y = self.env.unwrapped.agent_pos
+                if done:
+                    if "5x5" in self.env.unwrapped.spec.id:
+                        positions_x.append(3)  
+                        positions_y.append(3)
+                    elif "8x8" in self.env.unwrapped.spec.id:
+                        positions_x.append(6)  
+                        positions_y.append(6)
+                else:
                     positions_x.append(x)
                     positions_y.append(y)
+                
         
 
         ### save training data ###
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp)
         training_data_dir = os.path.join(working_dir, "training_data")
@@ -391,7 +425,7 @@ class DQNAgent(AbstractAgent):
         )
         print(f"Modell gespeichert unter: {save_path}")
 
-        training_data_path = os.path.join(training_data_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_seed_{self.seed}_{timestamp}.csv")
+        training_data_path = os.path.join(training_data_dir, f"dqn_training_data_{env_name}_noisy_{self.useNoisyNet}_reduction_{self.useNoiseReduction}_seed_{self.seed}_{timestamp}.csv")
         training_data = pd.DataFrame({"steps": steps, "rewards": episode_rewards})
         training_data.to_csv(training_data_path, index=False)
 
@@ -403,10 +437,13 @@ class DQNAgent(AbstractAgent):
 @hydra.main(config_path="configs/agent/", config_name="config_sweeper", version_base="1.1")
 def main(cfg: DictConfig) -> float:
     
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
     # 1) build env
     env = gym.make(cfg.env.name)#, render_mode="human")
-    env = FlatObsImageOnlyWrapper(env)
-    #env = FlatObsWrapper(env)
+    if "MiniGrid" in cfg.env.name:
+        env = FlatObsImageOnlyWrapper(env)
+
     set_seed(env, cfg.seed)
 
     # 2) map config → agent kwargs
@@ -421,23 +458,27 @@ def main(cfg: DictConfig) -> float:
         target_update_freq=cfg.agent.target_update_freq,
         seed=cfg.seed,
         useNoisyNet=cfg.agent.use_noisy_net,
+        useNoiseReduction=False,
+        minReward = cfg.agent.minReward,
+        maxReward = cfg.agent.maxReward
     )
 
     # 3) instantiate & train
     agent = DQNAgent(env, **agent_kwargs)
-    
-    print(f"Training with buffer_capacity={cfg.agent.buffer_capacity}...")
-    agent.train(cfg.train.num_frames, cfg.train.eval_interval)
-
+    print(f"Training with Seed: {cfg.seed}")
+    start_time = time.time()
+    agent.train(cfg.train.num_frames, cfg.train.eval_interval, t=timestamp)
+    duration = time.time() - start_time
 
     # Evaluation - einfacher Score
     print("Evaluating...")
     final_score = evaluate_policy(env, agent, turns=10)
-    
-    print(f"Buffer capacity {cfg.agent.buffer_capacity} -> Score: {final_score:.3f}")
-    
+    print(f"Score: {final_score:.3f}")
+    print(f"Duration: {duration:.2f} Seconds")
     env.close()
+
     return final_score
+
 
 if __name__ == "__main__":
     main()

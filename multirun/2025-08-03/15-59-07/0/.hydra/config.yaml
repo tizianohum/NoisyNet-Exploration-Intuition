@@ -1,0 +1,18 @@
+env:
+  name: MiniGrid-Dynamic-Obstacles-5x5-v0
+seed: 0
+agent:
+  buffer_capacity: 25000
+  batch_size: 256
+  learning_rate: 0.001
+  gamma: 0.8
+  epsilon_start: 1.0
+  epsilon_final: 0.02
+  epsilon_decay: 10000
+  target_update_freq: 1000
+  use_noisy_net: true
+  minReward: 0
+  maxReward: 1
+train:
+  num_frames: 100000
+  eval_interval: 1000

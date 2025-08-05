@@ -1,0 +1,3 @@
+- agent.gamma=0.7
+- agent.learning_rate=0.001
+- agent.epsilon_decay=2500
