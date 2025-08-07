@@ -1,4 +1,4 @@
-## Important Hyperparametersweep-Results and Timestamps
+# Important Hyperparametersweep-Results and Timestamps
 
 ## Sweep Parameters
 
@@ -15,7 +15,7 @@
 - Minigrid 8x8
 - CartPole-v1
 
-## Hyperparameters Environment
+# Hyperparameters Environment
 
 8x8 epsilon greedy
 name: optuna
@@ -93,24 +93,31 @@ best_value: 0.7884
 
 
 
-## Important Timestamps
+# Important Timestamps
 
-# 5x5 Empty
+## 5x5 Empty
 30 rund 5x5 noisy, noisy params: 20250802_104744
 30 runs 5x5 epsilon greedy, noisy params: 20250802_112343
 30 runs 5x5 k=4: 20250803_123825
 
-# 8x8 Empty 30 runs:
+## 8x8 Empty 30 runs:
 noise reduction: 20250804_231747
 noise: 20250805_025033
 greedy: 20250805_062148
 
-# Cartpole-v1
+## 8x8 Empty 30 runs with goal tile in heatmap:
+noise reduction: 20250805_153009
+noise: 20250806_091853
+greedy: 20250806_125218
+
+## Cartpole-v1
 15 runs, cartpole greedy: 20250804_004134
 15 runs, cartpole noisy, noise reduction off: 20250804_013949
-15 runs, cartpole noisy, noise reduction on:20250805_111301
+15 runs, cartpole noisy, noise reduction on(wrong learning rate): 20250805_111301
 
-# Old
+30 runs, cartpole greedy: 20250807_064010
+
+## Old
 30 runs 8x8 epsilon greedy, greedy params: 20250801_223311
 30 runs 8x8 noisy:  20250801_234458
 30 runs 8x8 k = 0.1, noisy: 20250802_235544

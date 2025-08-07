@@ -7,6 +7,7 @@ from datetime import datetime
 from rliable import metrics
 from rliable.library import get_interval_estimates
 from rliable.plot_utils import plot_sample_efficiency_curve
+import imageio.v2 as imageio
 
 
 def convert_timestamp_to_time(timestamp):
@@ -26,7 +27,7 @@ class Auswerter():
             for filename in os.listdir(heatmap_dir):
                 self.heatmap_paths.append(os.path.join(heatmap_dir, filename))
 
-            training_data_dir = os.path.join("RAW_Data", self.timestamps[0], "training_data")
+            training_data_dir = os.path.join("RAW_Data", self.timestamps[0], "training_data") 
             self.training_data_paths = []
             for filename in os.listdir(training_data_dir):
                 self.training_data_paths.append(os.path.join(training_data_dir, filename))
@@ -69,7 +70,7 @@ class Auswerter():
                 plt.legend()
                 plt.grid()
             if save:
-                plt.savefig(f"plots/training/reward_plot_{self.timestamp}.png")
+                plt.savefig(f"plots/training/reward_plot_{self.timestamps[0]}.png")
             plt.show()
 
         except FileNotFoundError:
@@ -167,7 +168,7 @@ class Auswerter():
 
 
             if save:
-                plt.savefig(f"plots/training/iqm_reward_plot_{self.timestamp}.png")
+                plt.savefig(f"plots/training/iqm_reward_plot_{self.timestamps[0]}.png")
 
         except FileNotFoundError:
             print("No training data files found for the given timestamp.")
@@ -192,18 +193,76 @@ class Auswerter():
                     heatmap[x, y] += 1
 
             plt.figure(figsize=(9,7.5))             
-            sns.heatmap(heatmap.T, annot=True, fmt="d",cmap="hot", cbar=True, vmax = 25e2, annot_kws={"size": 18})
-            plt.title(f"NoisyNet, steps: 0-500, 30 runs", fontsize=24)
+            sns.heatmap(heatmap.T, annot=True, fmt="d",cmap="hot", cbar=True, vmax = 5000, annot_kws={"size": 18})
+            plt.title(f"epsilon-greedy, steps: {int(start/1000)}-{int(end/1000)}k, 30 runs", fontsize=24)
             plt.xticks(fontsize=18)
             plt.yticks(fontsize=18)
             cbar = plt.gca().collections[0].colorbar
             cbar.ax.tick_params(labelsize=18)  # Skalenwerte
             if save:
-                plt.savefig(f"plots/heatmaps/heatmap_multiple_seeds{self.timestamp}.png")               
+                plt.savefig(f"plots/heatmaps/heatmap_multiple_seeds{self.timestamps[0]}.png")               
             plt.show()
         
         except FileNotFoundError:
             print("No heatmap data files found for the given timestamp.")
+
+
+    def heatmap_gif(self, width, height, start=0, end=5000, run_start = 0, run_end = 0,  frame_interval=500, save=True, delete_frames=True):
+        try:
+            os.makedirs("plots/heatmaps/tmp", exist_ok=True)  # temporärer Ordner für Frames
+
+            for path_index in range(run_start ,min(run_end+1, len(self.heatmap_paths))):
+                path = self.heatmap_paths[path_index]
+                df = pd.read_csv(path)
+                positions_x = df["x"].to_numpy() - 1
+                positions_y = df["y"].to_numpy() - 1
+
+                frames = []
+                frames_filenames = []
+                for frame_start in range(start, end, frame_interval):
+                    frame_end = frame_start + frame_interval
+                    x_slice = positions_x[frame_start:frame_end]
+                    y_slice = positions_y[frame_start:frame_end]
+
+                    heatmap = np.zeros((width-2, height-2), dtype=int)
+                    for x, y in zip(x_slice, y_slice):
+                        heatmap[x, y] += 1
+
+                    plt.figure(figsize=(9, 7.5))
+                    sns.heatmap(heatmap.T, annot=True, fmt="d", cmap="hot", cbar=True, vmax = 300, annot_kws={"size": 18})
+                    plt.title(f"NoisyNet, steps: {int(frame_start/1000)}-{int(frame_end/1000)}k", fontsize=24)
+                    plt.xticks(fontsize=18)
+                    plt.yticks(fontsize=18)
+                    cbar = plt.gca().collections[0].colorbar
+                    cbar.ax.tick_params(labelsize=18)
+
+                    frame_filename = f"plots/heatmaps/tmp/frame_{path_index}_{frame_start}.png"
+                    plt.savefig(frame_filename)
+                    plt.close()
+
+                    frames.append(imageio.imread(frame_filename))
+
+
+                gif_path = f"plots/heatmaps/heatmap_{self.timestamps[0]}_run{path_index}.gif"
+                imageio.mimsave(gif_path, frames, duration=0.8)  # Dauer pro Frame in Sekunden
+
+                video_path = f"plots/heatmaps/heatmap_{self.timestamps[0]}_run{path_index}.mp4"
+                with imageio.get_writer(video_path, fps=1000/frame_interval, codec='libx264') as writer:
+                    for frame_filename in frames:
+                        image = frame_filename
+                        writer.append_data(image)
+
+                if delete_frames:
+                    for f in os.listdir("plots/heatmaps/tmp"):
+                        if f.startswith(f"frame_{path_index}_"):
+                            os.remove(os.path.join("plots/heatmaps/tmp", f))
+
+            if delete_frames and not os.listdir("plots/heatmaps/tmp"):
+                os.rmdir("plots/heatmaps/tmp")
+
+        except FileNotFoundError:
+            print("No heatmap data files found for the given timestamp.")
+
 
     def heatmap(self,width,height,start = 0,end = 5000,save=False):
         try:
@@ -224,25 +283,26 @@ class Auswerter():
                     y = positions_y[i]
                     heatmap[x, y] += 1
 
-                        
-            plt.figure(figsize=(9,7.5))             
-            sns.heatmap(heatmap.T, annot=True, fmt="d",cmap="hot", cbar=True, vmax = 25e2, annot_kws={"size": 18})
-            plt.title(f"NoisyNet, steps: 0-500", fontsize=24)
-            plt.xticks(fontsize=18)
-            plt.yticks(fontsize=18)
-            cbar = plt.gca().collections[0].colorbar
-            cbar.ax.tick_params(labelsize=18)  # Skalenwerte
+                plt.figure(figsize=(9,7.5))             
+                sns.heatmap(heatmap.T, annot=True, fmt="d",cmap="hot", cbar=True, annot_kws={"size": 18})
+                plt.title(f"epsilon-greedy, steps: {int(start/1000)}-{int(end/1000)}k, 1 run", fontsize=24)
+                plt.xticks(fontsize=18)
+                plt.yticks(fontsize=18)
+                cbar = plt.gca().collections[0].colorbar
+                cbar.ax.tick_params(labelsize=18)  # Skalenwerte
+                plt.show()
+                break
             if save:
-                plt.savefig(f"plots/heatmaps/heatmap_{self.timestamp}.png")               
+                plt.savefig(f"plots/heatmaps/heatmap_{self.timestamps[0]}.png")               
             plt.show()
         
         except FileNotFoundError:
             print("No heatmap data files found for the given timestamp.")
 
 if __name__ == "__main__":
-    timestamp = "20250802_112343" #epsilon greedy, when using iqm
-    second_timestamp = "20250802_104744" #noisy without noise reduction, set so None if not used   
-    third_timestamp = "20250803_123825" #noisy with noise reduction k=4, set so None if not used
+    timestamp = "20250807_064010" #Important: This timestanmp is for heatmap data
+    second_timestamp = None #Just used for iqm-plot, set so None if not used   
+    third_timestamp = None #Just used for iqm-plot, set so None if not used
     print(convert_timestamp_to_time(timestamp))
 
     algorithm_timestamps = {"DQN-epsilon_greedy": timestamp,
@@ -250,9 +310,9 @@ if __name__ == "__main__":
                            "DQN-NoisyNet-noise_reduction": third_timestamp}
 
     auswertung = Auswerter(algorithm_timestamps) # Second timestamp has to be noisy net data
-    auswertung.heatmap_multipleseeds(5,5,0,1000)
-    auswertung.heatmap(5,5,0,1000)
-    auswertung.simpleplot()
-
+    #auswertung.heatmap_multipleseeds(5,5,10000,11000)
+    #auswertung.heatmap(5,5,10000,11000)
+    #auswertung.heatmap_gif(width=8, height=8, start=0, end=100000, run_start=0, run_end=0, frame_interval=1000)
     auswertung.iqmplot()
+
 
