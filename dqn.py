@@ -291,6 +291,7 @@ class DQNAgent(AbstractAgent):
         with torch.no_grad():
             next_q = self.target_q(s_next).max(1)[0]
             target = r + self.gamma * next_q * (1 - mask)
+        
         loss = None
         if self.useNoisyNet and self.useNoiseReduction:
             OutputLayer = self.q.net[4] # get noisy output layer for online weight adjustment
@@ -303,8 +304,8 @@ class DQNAgent(AbstractAgent):
             sum_sigma_w = sigma_w.abs().sum().item()
             sum_sigma_b = sigma_b.abs().sum().item()
 
-            D = (1 / ((p_star + 1) * N_a)) * (sum_sigma_w + sum_sigma_b)
-            k = 4 * (avg - self.minReward)/(self.maxReward - self.minReward)
+            D = (1 / ((p_star + 1) * N_a)) * (sum_sigma_w + sum_sigma_b) # weight adjustment factor, correlates to the current noise in the last layer
+            k = 4 * (avg - self.minReward)/(self.maxReward - self.minReward) #  scaling factor based on average reward, correlates to the current performance of the agent
             td_error = (target - pred) + k * D
             loss = torch.mean(td_error.pow(2))  # Equivalent to MSELoss
         else:
@@ -353,7 +354,6 @@ class DQNAgent(AbstractAgent):
             self.buffer.add(state, action, reward, next_state, done or truncated, {})
             state = next_state
             ep_reward += reward
-
             # update if ready
             if len(self.buffer) >= self.batch_size:
                 batch = self.buffer.sample(self.batch_size)
@@ -388,8 +388,6 @@ class DQNAgent(AbstractAgent):
                     positions_x.append(x)
                     positions_y.append(y)
                 
-        
-
         ### save training data ###
 
         working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp)
@@ -434,7 +432,7 @@ class DQNAgent(AbstractAgent):
         positions.to_csv(positions_path, index=False)
 
 
-@hydra.main(config_path="configs/agent/", config_name="config_sweeper", version_base="1.1")
+@hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig) -> float:
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
