@@ -13,7 +13,7 @@ from omegaconf import DictConfig
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
 
-    timestamp = "20250801_234458"
+    timestamp = "20250808_094716"
     working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp, "models")
 
 
@@ -27,8 +27,8 @@ def main(cfg: DictConfig):
 
     # 1) build env
     env = gym.make(cfg.env.name, render_mode="human")
-    env = FlatObsImageOnlyWrapper(env)
-    #env = FlatObsWrapper(env)
+    if "MiniGrid" in cfg.env.name:
+            env = FlatObsImageOnlyWrapper(env)    #env = FlatObsWrapper(env)
     set_seed(env, cfg.seed)
 
     # 2) map config → agent kwargs
@@ -43,6 +43,9 @@ def main(cfg: DictConfig):
         target_update_freq=cfg.agent.target_update_freq,
         seed=cfg.seed,
         useNoisyNet=cfg.agent.use_noisy_net,
+        useNoiseReduction=False,
+        minReward = cfg.agent.minReward,
+        maxReward = cfg.agent.maxReward
     )
     
     agent = DQNAgent(env, **agent_kwargs)
