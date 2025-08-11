@@ -1,0 +1,18 @@
+env:
+  name: CartPole-v1
+seed: 0
+agent:
+  buffer_capacity: 10000
+  batch_size: 64
+  learning_rate: 0.001
+  gamma: 0.93
+  epsilon_start: 1.0
+  epsilon_final: 0.01
+  epsilon_decay: 20000
+  target_update_freq: 500
+  use_noisy_net: false
+  minReward: -1
+  maxReward: 1
+train:
+  num_frames: 50000
+  eval_interval: 1000

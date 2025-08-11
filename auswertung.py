@@ -306,13 +306,13 @@ if __name__ == "__main__":
     print(convert_timestamp_to_time(timestamp))
 
     algorithm_timestamps = {"DQN-epsilon_greedy": timestamp,
-                           "DQN-NoisyNet": second_timestamp,
-                           "DQN-NoisyNet-noise_reduction": third_timestamp}
+                           "DQN-NoisyNet": None,
+                           "DQN-NoisyNet-noise_reduction": None}
 
     auswertung = Auswerter(algorithm_timestamps) # Second timestamp has to be noisy net data
     #auswertung.heatmap_multipleseeds(5,5,10000,11000)
     #auswertung.heatmap(5,5,10000,11000)
     #auswertung.heatmap_gif(width=8, height=8, start=0, end=100000, run_start=0, run_end=0, frame_interval=1000)
-    auswertung.iqmplot()
+    #auswertung.heatmap()
 
 
