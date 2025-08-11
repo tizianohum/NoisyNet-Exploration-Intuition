@@ -185,15 +185,14 @@ Use the analysis tools to visualize results:
 ```python
 from auswertung import Auswerter
 
-# Load experiment data
-algorithm_timestamps = {"DQN-NoisyNet": timestamp}
-analyzer = Auswerter(algorithm_timestamps)
+algorithm_timestamps = {"DQN-epsilon_greedy": timestamp,
+                           "DQN-NoisyNet": None,
+                           "DQN-NoisyNet-noise_reduction": None}
 
-# Generate training plots
-analyzer.simpleplot(save=True)
+auswertung = Auswerter(algorithm_timestamps) # Second timestamp has to be noisy net data
+auswertung.simpleplot(save=True)
 
-# Create heatmaps (for grid environments)
-auswertung.heatmap(8,8) # for 8x8 minigrid environment
+auswertung.heatmap(8,8) # for minigrid environment
 ```
 
 ## Configuration
