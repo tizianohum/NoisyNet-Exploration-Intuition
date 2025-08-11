@@ -300,7 +300,7 @@ class Auswerter():
             print("No heatmap data files found for the given timestamp.")
 
 if __name__ == "__main__":
-    timestamp = "20250807_064010" #Important: This timestanmp is for heatmap data
+    timestamp = "20250811_150117" #Important: This timestanmp is for heatmap data
     second_timestamp = "20250807_234455" #Just used for iqm-plot, set so None if not used   
     third_timestamp = "20250807_150346" #Just used for iqm-plot, set so None if not used
     print(convert_timestamp_to_time(timestamp))
@@ -310,9 +310,8 @@ if __name__ == "__main__":
                            "DQN-NoisyNet-noise_reduction": None}
 
     auswertung = Auswerter(algorithm_timestamps) # Second timestamp has to be noisy net data
-    #auswertung.heatmap_multipleseeds(5,5,10000,11000)
-    #auswertung.heatmap(5,5,10000,11000)
-    #auswertung.heatmap_gif(width=8, height=8, start=0, end=100000, run_start=0, run_end=0, frame_interval=1000)
-    #auswertung.heatmap()
+    auswertung.simpleplot(save=True)
+
+    auswertung.heatmap(8,8) # for minigrid environment
 
 

@@ -9,7 +9,7 @@ This project implements and compares different exploration strategies in reinfor
 ## Features
 
 - **DQN Agent** with configurable exploration strategies
-- **NoisyNet implementation** for parameter space exploration
+- **NoisyNet implementation** for exploration
 - **Experiment tracking** with automatic data saving
 - **Visualization tools** for training analysis and heatmap generation
 - **Hydra configuration management** for reproducible experiments
@@ -116,7 +116,7 @@ Use Hyperparameter Sweeping, to find a good Hyperparameter Configuration for the
 For the sweeping a config_sweeper.yaml is used:
 
 ```yaml
-# configs/agent/sweep_buffer_config.yaml
+# configs/agent/config_sweeper.yaml
 defaults:
   - override hydra/sweeper: optuna
 
@@ -161,7 +161,8 @@ hydra:
 
 run with:
 ````
-python3 dqn.py -
+python3 dqn.py --multirun
+````
 
 ### Testing Trained Models
 
@@ -171,7 +172,7 @@ Test a specific experiment:
 python testMMDL.py
 ```
 
-Update the timestamp in the script to match your experiment (The timestamp is also the foldername, where your data was saved):
+Update the timestamp in the script to match your experiment (The timestamp is also the foldername, where your data was saved). Make sure your experiment has the same .yaml as your main .yaml in configs/agent. The file is saved in your experiment folder. Copy the parameters or change the path in your testMMDL.py.
 
 ```python
 timestamp = "20250728_133214"  # Your experiment timestamp
@@ -192,7 +193,7 @@ analyzer = Auswerter(algorithm_timestamps)
 analyzer.simpleplot(save=True)
 
 # Create heatmaps (for grid environments)
-auswertung.heatmap(5,5,10000,11000) # for minigrid environment
+auswertung.heatmap(8,8) # for 8x8 minigrid environment
 ```
 
 ## Configuration
@@ -227,20 +228,6 @@ train:
   eval_interval: 1000       # Evaluation frequency
 ```
 
-## Key Components
-
-### NoisyNet Implementation
-
-- **Factorized Gaussian noise** for efficient parameter space exploration
-- **Automatic noise scheduling** without manual epsilon decay
-- **Deterministic evaluation mode** for consistent testing
-
-### Experiment Tracking
-
-- **Automatic timestamping** of all experiments
-- **Complete configuration backup** for reproducibility
-- **Training metrics logging** (rewards, loss, epsilon values)
-- **Agent position tracking** for exploration analysis
 
 ## Results
 

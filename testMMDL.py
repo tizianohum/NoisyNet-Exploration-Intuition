@@ -13,7 +13,7 @@ from omegaconf import DictConfig
 @hydra.main(config_path="configs/agent/", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
 
-    timestamp = "20250808_094716"
+    timestamp = "20250811_150117"
     working_dir =os.path.join(hydra.utils.get_original_cwd(),"RAW_Data",timestamp, "models")
 
 
