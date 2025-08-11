@@ -12,7 +12,7 @@ agent:
   epsilon_final:      0.01
   epsilon_decay:      5000
   target_update_freq: 1000
-  use_noisy_net:      False     # Set to True to use NoisyNet exploration
+  use_noisy_net:      True     # Set to True to use NoisyNet exploration
   minReward:          0
   maxReward:          500
 

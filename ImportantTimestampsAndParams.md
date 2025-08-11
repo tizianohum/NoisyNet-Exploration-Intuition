@@ -116,6 +116,7 @@ greedy: 20250806_125218
 15 runs, cartpole noisy, noise reduction on(wrong learning rate): 20250805_111301
 
 30 runs, cartpole greedy: 20250807_064010
+15 runs, cartpole noisy, noise reduction on: 20250807_150346
 
 ## Old
 30 runs 8x8 epsilon greedy, greedy params: 20250801_223311

@@ -301,8 +301,8 @@ class Auswerter():
 
 if __name__ == "__main__":
     timestamp = "20250807_064010" #Important: This timestanmp is for heatmap data
-    second_timestamp = None #Just used for iqm-plot, set so None if not used   
-    third_timestamp = None #Just used for iqm-plot, set so None if not used
+    second_timestamp = "20250807_234455" #Just used for iqm-plot, set so None if not used   
+    third_timestamp = "20250807_150346" #Just used for iqm-plot, set so None if not used
     print(convert_timestamp_to_time(timestamp))
 
     algorithm_timestamps = {"DQN-epsilon_greedy": timestamp,
